@@ -1,0 +1,85 @@
+service: serverless-nodejs-app
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+frameworkVersion: '3'
+
+custom: 
+  secrets: ${file(secrets.json)}
+  tableNameDDB: connectionsTable-${self:provider.stage}
+
+
+provider:
+  name: aws
+  logs:
+    websocket:
+      level: INFO
+  runtime: nodejs12.x
+  stage: ${opt:stage, 'dev'}
+  region: eu-west-2
+  websocketsApiName: custom-websockets-api-name
+  websocketsApiRouteSelectionExpression: $request.body.action # custom routes are selected by the value of the action property in the body
+  websocketsDescription: Custom Serverless Websockets
+  memorySize: 512
+  environment:
+    NODE_ENV: ${self:custom.secrets.NODE_ENV}
+    TABLE_NAME_DDB: !Ref ConnectionsTable
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Scan
+            - dynamodb:Query
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:GetRecords
+            - dynamodb:BatchGetItem
+            - dynamodb:DescribeTable
+            - dynamodb:GetShardIterator
+            - dynamodb:ConditionCheckItem
+          Resource: 'arn:aws:dynamodb:*:*:*'
+resources:
+  Resources:
+    ConnectionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableNameDDB}
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+functions:
+  connectHandler:
+    handler: app.connectHandler
+    events:
+      - websocket: 
+          route: $connect
+  disConnectHandler:
+    handler: app.disconnectHandler
+    events:
+      - websocket:
+          route: $disconnect
+  defaultHandler:
+    handler: app.defaultHandler
+    events:
+      - websocket:
+          route: $default
+          #routeResponseSelectionExpression: $default
+  sendMessageHandler:
+    handler: app.sendMessageHandler
+    events:
+      - websocket:
+          route: sendmessage      
+  sendToMessageHandler:
+    handler: app.sendToMessageHandler
+    events:
+      - websocket:
+          route: sendtomessage      
