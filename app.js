@@ -151,6 +151,21 @@ module.exports.sendMessageHandler = async (event, context) => {
 
   const message = JSON.parse(event.body).message;
 
+  const result = connections.Items.find(({ connectionId }) => connectionId === event.requestContext.connectionId)
+  console.log("Result is: ");
+  console.log(`Result is: ${JSON.stringify(result)}`);
+
+  if (result && result.sendTo) {
+    try {
+      await callbackAPI.postToConnection({ ConnectionId: result.sendTo, Data: message }).promise();
+      return { statusCode: 200 };
+    } catch (e) {
+      console.log(e);
+      console.log(`Failed to send to specific user: ${result.sendTo}`);
+    }
+  }
+
+
   const sendMessages = connections.Items.map(async ({ connectionId }) => {
     if (connectionId !== event.requestContext.connectionId) {
       try {
