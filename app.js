@@ -73,48 +73,90 @@ module.exports.defaultHandler = async (event, context) => {
   };
 
 
+//module.exports.sendMessageHandler = async (event, context) => {
+//  let connections;
+//  try {
+//    // overkill to check all connections, but there won't be many people connected so
+//    // no problem
+//    connections = await ddb.scan({ TableName: process.env.TABLE_NAME_DDB }).promise();
+//  } catch (err) {
+//    return {
+//      statusCode: 500,
+//    };
+//  }
+//
+//  const callbackAPI = new AWS.ApiGatewayManagementApi({
+//    apiVersion: '2018-11-29',
+//    endpoint:
+//      event.requestContext.domainName + '/' + event.requestContext.stage,
+//  });
+//  const message = JSON.parse(event.body).message;
+//
+//
+//  // find current user connection ID from database
+//  const result = connections.Items.find(({ connectionId }) => connectionId === event.requestContext.connectionId)
+//  // if it is found and the field 'sendTo' is populated, send to only the sendTo connection id
+//  if (result && result.sendTo) {
+//    try {
+//      await callbackAPI
+//        .postToConnection({ connectionId: result.sendTo, data: message })
+//        .promise();
+//      return { statusCode: 200 };
+//    } catch (e) {
+//      console.log(e);
+//      console.log(`Failed to send to specific user: ${result.sendTo}`);
+//    }
+//  }
+//
+//  // Otherwise, send to everyone else
+//  const sendMessages = connections.Items.map(async ({ connectionId }) => {
+//    if (connectionId !== event.requestContext.connectionId) {
+//      try {
+//        await callbackAPI
+//        .postToConnection({ connectionId: connectionId, data: message })
+//        .promise();
+//      } catch (e) {
+//        console.log(e);
+//      }
+//    }
+//  });
+//
+//  try {
+//    await Promise.all(sendMessages);
+//  } catch (e) {
+//    console.log(e);
+//    return {
+//      statusCode: 500,
+//    };
+//  }
+//
+//  return { statusCode: 200 };
+//};
+//
+
 module.exports.sendMessageHandler = async (event, context) => {
   let connections;
   try {
-    // overkill to check all connections, but there won't be many people connected so
-    // no problem
     connections = await ddb.scan({ TableName: process.env.TABLE_NAME_DDB }).promise();
   } catch (err) {
     return {
       statusCode: 500,
     };
   }
-
   const callbackAPI = new AWS.ApiGatewayManagementApi({
     apiVersion: '2018-11-29',
     endpoint:
       event.requestContext.domainName + '/' + event.requestContext.stage,
   });
+
   const message = JSON.parse(event.body).message;
 
-
-  // find current user connection ID from database
-  const result = connections.Items.find(({ connectionId }) => connectionId === event.requestContext.connectionId)
-  // if it is found and the field 'sendTo' is populated, send to only the sendTo connection id
-  if (result && result.sendTo) {
-    try {
-      await callbackAPI
-        .posttoconnection({ connectionid: result.sendTo, data: message })
-        .promise();
-      return { statusCode: 200 };
-    } catch (e) {
-      console.log(e);
-      console.log(`Failed to send to specific user: ${result.sendTo}`);
-    }
-  }
-
-  // Otherwise, send to everyone else
   const sendMessages = connections.Items.map(async ({ connectionId }) => {
     if (connectionId !== event.requestContext.connectionId) {
       try {
         await callbackAPI
-        .posttoconnection({ connectionid: connectionid, data: message })
-        .promise();
+          .postToConnection({ ConnectionId: connectionId, Data: message })
+          .promise();
       } catch (e) {
         console.log(e);
       }
@@ -132,6 +174,10 @@ module.exports.sendMessageHandler = async (event, context) => {
 
   return { statusCode: 200 };
 };
+
+
+
+
 
 // Set the sendTo field for both the sender and receiver
 // A -> B, B -> A
