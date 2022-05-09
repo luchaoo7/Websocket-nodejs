@@ -3,6 +3,7 @@ const AWS = require('aws-sdk');
 const ddb = new AWS.DynamoDB.DocumentClient();
 
 module.exports.disconnectHandler = async (event, context) => {
+  console.log(`Delete item on disconnect ${event.requestContext.connectionId}`)
   await ddb
     .delete({
       TableName: process.env.TABLE_NAME_DDB,
@@ -75,26 +76,45 @@ module.exports.defaultHandler = async (event, context) => {
 module.exports.sendMessageHandler = async (event, context) => {
   let connections;
   try {
+    // overkill to check all connections, but there won't be many people connected so
+    // no problem
     connections = await ddb.scan({ TableName: process.env.TABLE_NAME_DDB }).promise();
   } catch (err) {
     return {
       statusCode: 500,
     };
   }
+
   const callbackAPI = new AWS.ApiGatewayManagementApi({
     apiVersion: '2018-11-29',
     endpoint:
       event.requestContext.domainName + '/' + event.requestContext.stage,
   });
-
   const message = JSON.parse(event.body).message;
 
+
+  // find current user connection ID from database
+  const result = connections.Items.find(({ connectionId }) => connectionId === event.requestContext.connectionId)
+  // if it is found and the field 'sendTo' is populated, send to only the sendTo connection id
+  if (result && result.sendTo) {
+    try {
+      await callbackAPI
+        .posttoconnection({ connectionid: result.sendTo, data: message })
+        .promise();
+      return { statusCode: 200 };
+    } catch (e) {
+      console.log(e);
+      console.log(`Failed to send to specific user: ${result.sendTo}`);
+    }
+  }
+
+  // Otherwise, send to everyone else
   const sendMessages = connections.Items.map(async ({ connectionId }) => {
     if (connectionId !== event.requestContext.connectionId) {
       try {
         await callbackAPI
-          .postToConnection({ ConnectionId: connectionId, Data: message })
-          .promise();
+        .posttoconnection({ connectionid: connectionid, data: message })
+        .promise();
       } catch (e) {
         console.log(e);
       }
@@ -113,15 +133,18 @@ module.exports.sendMessageHandler = async (event, context) => {
   return { statusCode: 200 };
 };
 
+// Set the sendTo field for both the sender and receiver
+// A -> B, B -> A
 module.exports.sendToMessageHandler = async (event, context) => {
-  let connections;
-  try {
-    connections = await ddb.scan({ TableName: process.env.TABLE_NAME_DDB }).promise();
-  } catch (err) {
-    return {
-      statusCode: 500,
-    };
-  }
+  //let connections;
+  //try {
+  //  connections = await ddb.scan({ TableName: process.env.TABLE_NAME_DDB }).promise();
+  //} catch (err) {
+  //  return {
+  //    statusCode: 500,
+  //  };
+  //}
+
   const callbackAPI = new AWS.ApiGatewayManagementApi({
     apiVersion: '2018-11-29',
     endpoint:
@@ -129,12 +152,65 @@ module.exports.sendToMessageHandler = async (event, context) => {
   });
 
   const message = JSON.parse(event.body).message;
-  const to = JSON.parse(event.body).to;
-  console.log(`Sending to connectionID: ${to}`);
+  const sendTo = JSON.parse(event.body).to;
 
-  if ( to ) {
+  console.log(`Sending to connectionID: ${sendTo}`);
+
+  var params = {
+    ExpressionAttributeValues: {
+      ':s': sendTo
+    },
+    KeyConditionExpression: "connectionId = :s",
+    TableName: process.env.TABLE_NAME_DDB
+  }
+
+  let queryResponse;
+  let sendToDb = null;
+  try {
+    // Find sendTo ConnectionId in database. it is the primaryKey,
+    // so only one item should be returned in the Items array.
+    queryResponse = await ddb.query(params).promise();
+    // if entry found in databasse
+    if (queryResponse.Count > 0) {
+      sendToDb = queryResponse.Items[0].connectionId
+
+      try {
+        // sendTo will be set in the current user's sendTo field
+        await ddb
+          .put({
+            TableName: process.env.TABLE_NAME_DDB,
+            Item: {
+              connectionId: event.requestContext.connectionId,
+              sendTo: sendToDb,
+            },
+          })
+          .promise();
+        // The current user's connectionId will be sent in sendTo's sento field
+        await ddb
+          .put({
+            TableName: process.env.TABLE_NAME_DDB,
+            Item: {
+              connectionId: sendToDb,
+              sendTo: event.requestContext.connectionId,
+            },
+          })
+          .promise();
+
+      } catch (error) {
+        console.log(`Could not set the sendTo field for: ${event.requestContext.connectionId} or ${sendTo}`)
+      }
+
+
+    }
+
+    console.log(`QueryResponse is: ${JSON.stringify(queryResponse)}`);
+  } catch (error) {
+    console.log(`Failed Query for: ${JSON.stringify(params)}`);
+  }
+
+  if (sendToDb) {
     try {
-      return await callbackAPI.postToConnection({ ConnectionId: to, Data: message }).promise();
+      return await callbackAPI.postToConnection({ ConnectionId: sendToDb, Data: message }).promise();
       
     } catch (error) {
         console.log(error);
