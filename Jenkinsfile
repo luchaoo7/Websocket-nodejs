@@ -19,8 +19,7 @@ pipeline {
         stage('install') {
             steps {
                 // Clean before build
-                cleanWs()
-                    sh 'npm install'
+                sh 'npm install'
 
             }
 
