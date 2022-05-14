@@ -9,8 +9,8 @@ pipeline {
         stage('Checkout repository') {
             steps {
                 // You can choose to clean workspace before build as follows
-                cleanWs()
-                    checkout scm
+                //cleanWs()
+                //    checkout scm
                     echo "Building ${env.JOB_NAME}..."
 
             }
