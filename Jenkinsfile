@@ -5,7 +5,8 @@ pipeline {
             steps {
                 // You can choose to clean workspace before build as follows
                 cleanWs()
-                    checkout scm
+                checkout scm
+                echo "Building ${env.JOB_NAME}..."
 
             }
 
