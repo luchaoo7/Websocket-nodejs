@@ -19,6 +19,7 @@ module.exports.disconnectHandler = async (event, context) => {
 
 
 module.exports.connectHandler = async (event, context) => {
+  console.log("we made it")
   try {
     await ddb
       .put({
