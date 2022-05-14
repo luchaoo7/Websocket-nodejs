@@ -1,9 +1,20 @@
 pipeline {
     agent { any { image 'node:16.13.1-alpine'  }  }
     stages {
-        stage('build') {
+        stage('Checkout repository') {
             steps {
-                sh 'node --version'
+                // You can choose to clean workspace before build as follows
+                cleanWs()
+                    checkout scm
+
+            }
+
+        }
+        stage('install') {
+            steps {
+                // Clean before build
+                cleanWs()
+                    sh 'npm install'
 
             }
 
