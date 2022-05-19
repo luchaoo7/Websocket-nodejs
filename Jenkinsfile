@@ -10,8 +10,8 @@ pipeline {
             steps {
                 // You can choose to clean workspace before build as follows
                 //cleanWs()
-                //    checkout scm
-                    echo "Building ${env.JOB_NAME}..."
+                //checkout scm
+                echo "Building ${env.JOB_NAME}..."
 
             }
 
@@ -23,7 +23,6 @@ pipeline {
             }
 
         }
-
 
 
     }

@@ -58,28 +58,28 @@ resources:
           WriteCapacityUnits: 5
 functions:
   connectHandler:
-    handler: app.connectHandler
+    handler: build/app.connectHandler
     events:
       - websocket: 
           route: $connect
   disConnectHandler:
-    handler: app.disconnectHandler
+    handler: build/app.disconnectHandler
     events:
       - websocket:
           route: $disconnect
   defaultHandler:
-    handler: app.defaultHandler
+    handler: build/app.defaultHandler
     events:
       - websocket:
           route: $default
           #routeResponseSelectionExpression: $default
   sendMessageHandler:
-    handler: app.sendMessageHandler
+    handler: build/app.sendMessageHandler
     events:
       - websocket:
           route: sendmessage      
   sendToMessageHandler:
-    handler: app.sendToMessageHandler
+    handler: build/app.sendToMessageHandler
     events:
       - websocket:
           route: sendtomessage      

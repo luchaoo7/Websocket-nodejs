@@ -1,8 +1,9 @@
 //'use strict';
-const AWS = require('aws-sdk');
+//const AWS = require('aws-sdk');
+import AWS from 'aws-sdk';
 const ddb = new AWS.DynamoDB.DocumentClient();
 
-module.exports.disconnectHandler = async (event, context) => {
+module.exports.disconnectHandler = async (event) => {
   console.log(`Delete item on disconnect ${event.requestContext.connectionId}`)
   await ddb
     .delete({
@@ -18,7 +19,7 @@ module.exports.disconnectHandler = async (event, context) => {
 };
 
 
-module.exports.connectHandler = async (event, context) => {
+module.exports.connectHandler = async (event) => {
   console.log("Testing Jenkinsfile")
   try {
     await ddb
@@ -39,9 +40,9 @@ module.exports.connectHandler = async (event, context) => {
   };
 };
 
-module.exports.defaultHandler = async (event, context) => {
+module.exports.defaultHandler = async (event) => {
     let connectionInfo;
-    let connectionId = event.requestContext.connectionId;
+    const connectionId: string = event.requestContext.connectionId;
   
     const callbackAPI = new AWS.ApiGatewayManagementApi({
       apiVersion: '2018-11-29',
@@ -135,7 +136,7 @@ module.exports.defaultHandler = async (event, context) => {
 //};
 //
 
-module.exports.sendMessageHandler = async (event, context) => {
+module.exports.sendMessageHandler = async (event) => {
   let connections;
   try {
     connections = await ddb.scan({ TableName: process.env.TABLE_NAME_DDB }).promise();
@@ -197,7 +198,7 @@ module.exports.sendMessageHandler = async (event, context) => {
 
 // Set the sendTo field for both the sender and receiver
 // A -> B, B -> A
-module.exports.sendToMessageHandler = async (event, context) => {
+module.exports.sendToMessageHandler = async (event) => {
   //let connections;
   //try {
   //  connections = await ddb.scan({ TableName: process.env.TABLE_NAME_DDB }).promise();
@@ -218,7 +219,7 @@ module.exports.sendToMessageHandler = async (event, context) => {
 
   console.log(`Sending to connectionID: ${sendTo}`);
 
-  var params = {
+  const params = {
     ExpressionAttributeValues: {
       ':s': sendTo
     },
@@ -276,7 +277,7 @@ module.exports.sendToMessageHandler = async (event, context) => {
       
     } catch (error) {
         console.log(error);
-        console.log(`Error: could not send request to connectionID: ${to}`);
+        console.log(`Error: could not send request to connectionID: ${sendToDb}`);
         return {
           statusCode: 500,
         }

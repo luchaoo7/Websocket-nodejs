@@ -6,3 +6,4 @@ jspm_packages
 .serverless
 serverless.yml.template
 test.js
+build
